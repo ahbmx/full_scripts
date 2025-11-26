@@ -357,6 +357,100 @@ sudo systemctl status san_collector.service
 
 This is a **complete, runnable test environment**.
 
-I can also add **a small test script to simulate multiple runs and show reports generated conditionally**, if you want to verify behavior before deploying.
+
+Perfect — we can make the **`test_runner.py`** flexible to run **specific families or specific functions** without interactivity, fully automated. Here’s a clear approach.
+
+---
+
+## **Updated `test_runner.py` for selective testing**
+
+```python
+from dvl import logHelper, reportHelper
+from v1 import run_all_families, FAMILY_FUNCTIONS, inventory
+
+# ---------- Setup Logger ----------
+logger = logHelper.setup_logger("SAN_TestRunner", "san_test_runner.log")
+logger.info("Starting SAN selective test runner...")
+
+# ---------- CONFIG: choose families and/or functions ----------
+# Options:
+# 1. Run all families/functions: leave as None
+# 2. Run specific families: e.g. ["brocade", "purestorage"]
+# 3. Run specific functions: {"brocade": ["switchshow"], "purestorage": ["volumes"]}
+
+families_to_run = ["brocade", "purestorage"]  # None to run all families
+functions_to_run = {"brocade": ["switchshow"], "purestorage": ["volumes"]}  # None to run all functions
+
+# ---------- Prepare selected functions ----------
+selected_functions = {}
+for family in (families_to_run or inventory.keys()):
+    funcs = FAMILY_FUNCTIONS[family]
+    if functions_to_run and family in functions_to_run:
+        funcs = {fn: meta for fn, meta in funcs.items() if fn in functions_to_run[family]}
+    selected_functions[family] = funcs
+
+# ---------- Run all families/functions ----------
+results = {}
+for family, funcs in selected_functions.items():
+    family_results = run_all_families(selected_types=[family])
+    # Filter only selected functions
+    for fn_name in funcs:
+        key = f"{family}_{fn_name}"
+        if key in family_results:
+            results[key] = family_results[key]
+
+logger.info(f"Finished collecting data. {len(results)} DataFrames generated.")
+
+# ---------- Print summary ----------
+for name, df in results.items():
+    logger.info(f"=== {name} ===\n{df}\n")
+
+# ---------- Run mock reports ----------
+logger.info("Generating mock reports for selected data...")
+reportHelper.generate_all_reports(results, pdf_filename="SAN_Test_Report_Selected.pdf")
+logger.info("Test report generation complete.")
+```
+
+---
+
+### **How this works**
+
+1. **`families_to_run`** → choose which families to test.
+2. **`functions_to_run`** → choose which functions within each family to test.
+3. Runs only the selected functions, prints/logs DataFrames.
+4. Generates a **mock report** only for selected data.
+5. Fully automated, no interactive prompts.
+
+---
+
+### **Examples**
+
+* **Run all brocade functions**:
+
+```python
+families_to_run = ["brocade"]
+functions_to_run = None
+```
+
+* **Run only `switchshow` on brocade and `volumes` on purestorage**:
+
+```python
+families_to_run = ["brocade", "purestorage"]
+functions_to_run = {"brocade": ["switchshow"], "purestorage": ["volumes"]}
+```
+
+* **Run everything**:
+
+```python
+families_to_run = None
+functions_to_run = None
+```
+
+---
+
+This allows **quick tests of specific devices/functions** without touching the scheduler.
+
+I can also update it so that it **runs the same test multiple times** to simulate hourly/daily schedules for testing the conditional report logic.
 
 Do you want me to add that?
+
