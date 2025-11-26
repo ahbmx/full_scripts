@@ -11,6 +11,8 @@ We’ll keep the architecture **modular**:
 
 We’ll also **mock outputs** so you can test without real systems.
 
+
+
 ---
 
 # **1️⃣ Updated inventory.json**
@@ -64,6 +66,33 @@ We’ll also **mock outputs** so you can test without real systems.
 > ✅ Only one password per family
 
 ---
+
+# **3️⃣ dvl/logHelper.py (mock)**
+
+```python
+import logging
+from datetime import datetime
+import os
+
+def setup_logging():
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    os.makedirs("logs", exist_ok=True)
+    logfile = f"logs/run_{timestamp}.log"
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(logfile, mode="w"),
+            logging.StreamHandler()
+        ]
+    )
+    logging.info(f"Logging initialized → {logfile}")
+
+def log(msg):
+    logging.info(msg)
+```
+
 
 # **3️⃣ dvl/powermaxHelper.py (mock)**
 
